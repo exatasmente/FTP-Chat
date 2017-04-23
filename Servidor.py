@@ -1,167 +1,176 @@
 import socket
 import Cliente
+'''
+Servidor Chat Baseado em Socket Stream  
 
+Feito Com Amor em Python 3
+
+Criado Por: Luiz Vieira Gonzaga Neto
+Primeiro trabalho da disciplina Redes de Computadores 2017.1 UFC CAMPUS RUSSAS
+
+'''
 RECV_BUFFER = 4096
 
 class Servidor:
-    
+
+
     def __init__(self,IP,PORTA):
     
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind((IP, PORTA))
         self.socket.listen(10)
-        self.C_LISTA = dict()
-        self.C_LISTA['0'] = list()
-        self.SOCKLIST=list()
-        self.SOCKLIST.append(self.socket)
-        self.COMANDO = ['/sair','/entrar','/trocar','/criar']
-        
-    def remover(self,cliente):
-        print('DEL')
-        cliente.disconnect()
-        self.SOCKLIST.remove(cliente.socket)
+        self.listaCanais = dict()
+        self.listaCanais['0'] = list()
+        self.listaSockets=list()
+        self.listaSockets.append(self.socket)
+           
+
+    def getSock(self):
+        return self.socket
+
+    def getListaSockets(self):
+        return self.listaSockets
+
+    def getListaCanais(self):
+        return self.listaCanais
 
 
-    #Func1 seleciona o canal
-    def enviar_msg(self,cliente,msg):
 
-        for cli in self.C_LISTA[cliente.canal]:
-            if cli.socket != cliente.socket and cli.socket != self.socket:
+    def getData(self,s):
+        try:
+            POST = True
+            data = s.recv(RECV_BUFFER).decode()
+            if data:
+                cliente = self.__getCliente__(s)
+                if cliente.getNome() == None:
+                    POST =  self.__setNomeCliente__(data,cliente)
+                if POST:
+                    POST = self.__getComando__(cliente,data)
+                if POST : 
+                    self.__post__(cliente,data)        
+        except Exception as e:
+            print(e) 
+            cliente  = self.__getCliente__(s)
+            self.__sairCanal__(cliente.getCanal(),cliente)
+            print ("O Cliente saiu")
+            self.__remover__(cliente)
+            self.listaCanais[cliente.getCanal()].remove(cliente)
+            pass
+            
+    
+    def __post__(self,cliente,msg):
+
+        for cli in self.listaCanais[cliente.getCanal()]:
+            if cli.getSock() != cliente.getSock() and cli.getSock() != self.socket:
                 try:
-                    print(str(cliente.nome+" : "+msg))
-                    cli.post(str(cliente.nome+" : "+msg))
+                    print(str(cliente.getNome()+" : "+msg))
+                    cli.post(str(cliente.getNome()+" : "+msg))
                 except Exception as e:
-                    print('ERRO ENVIA MSG')
                     print(e) 
-                    self.remover(cli)
-                    self.C_LISTA[cliente.canal].remove(cli)
+                    self.__remover__(cli)
+                    self.listaCanais[cliente.getCanal()].remove(cli)
                     continue
 
-    # Func5 Sair Canal
-    def sair_canal(self,nome_canal,cliente):
-        self.enviar_msg(cliente,'Saiu do canal\n')
-        print(cliente.nome,'Saiu do Canal : ',cliente.canal)
-        self.C_LISTA[nome_canal].remove(cliente)
-        
 
-    # Func4 Entra Canal
-    def entrar_canal(self,nome_canal,cliente):
-        if nome_canal in self.C_LISTA:
-            if not cliente in self.C_LISTA[nome_canal]:
-                cliente.canal = nome_canal
-                self.C_LISTA[nome_canal].append(cliente)
-                self.C_LISTA['0'].remove(cliente)
-                self.enviar_msg(cliente,'Entrou\n')
-                cliente.post('Você Está No Canal: '+nome_canal+"\n")
-                print(cliente.nome,'Entrou no Canal : ',cliente.canal,"\n")
-        else:
-            cliente.post('§Error03§\n')
-        
-                            
 
-                    
-    # Func3 Cria um canal
-    def criar_canal(self,nome_canal,cliente):
-        if not nome_canal in self.C_LISTA:
-            print('Criar Canal Com Nome: ',nome_canal)
-            self.C_LISTA[nome_canal]=list()
-            cliente.post('Você Criou o Canal: '+nome_canal+"\n")
-            self.entrar_canal(nome_canal,cliente)
-        else:
-            cliente.post('§Error02§\n')
-    
-    def getNomeCliente(sock):
+    def conectaCliente(self):
+        sock,addr = self.socket.accept()
+        cliente = Cliente.Cliente(None,addr,sock,'0')
+        self.listaSockets.append(cliente.getSock())
+        self.listaCanais['0'].append(cliente)
+
+              
+
+    def __getCliente__(self,socket):
+
+        for canal in self.listaCanais:
+            for cliente in self.listaCanais[canal]:
+                if socket ==  cliente.getSock():
+                      return cliente
+
+
+    def __getNomeCliente__(sock):
      data = sock.recv(RECV_BUFFER).decode()
      return data
 
 
-    def conecta_cliente(self):
-
-        c = None
-        print('Connecta')
-
-        sock,addr = self.socket.accept()
-
-        cliente = Cliente.Cliente(None,addr,sock,'0')
-        self.SOCKLIST.append(cliente.socket)
-        self.C_LISTA['0'].append(cliente)
-        print(self.C_LISTA)
-      
-        
-
-    def getCliente(self,socket):
-
-        for canal in self.C_LISTA:
-            for cliente in self.C_LISTA[canal]:
-                if socket ==  cliente.socket:
-                      return cliente
-
-    def setNomeCliente(self,nome,cliente):
-       print('Set Nome')
+    def __setNomeCliente__(self,nome,cliente):
        if cliente:
-           if cliente.nome == None:
-               cliente.nome = nome
+           if cliente.getNome() == None:
+               cliente.setNome(nome)
                return False
        return True
-    
-               
+                   
    
-    def getComando(self,data,cliente):
-        if data == self.COMANDO[0]:
-            self.remover(cliente)
-        if data == self.COMANDO[1]:
-            data = data.replace(self.COMANDO[1],"")
-            self.entrar_canal(data,cliente)
-    def getCanais(self):
-        return [i for i in self.C_LISTA]
+    def __getComando__(self,cliente,data):
+        if str(data).find('//sair') >-1:
+            self.__sairCanal__(cliente.getCanal(),cliente)
+            return False
+        if str(data).find('|sair|') >-1:
+            cliente.setCanal('0')
+            self.__sairCanal__(cliente.getCanal(),cliente)
+            return False
+        if str(data).find('//criar')>-1 and len(data.split())==2:
+            self.__criarCanal__(data.split()[1],cliente)
+            return False
+        if str(data).find('//entrar')>-1 and len(data.split())==2:
+            self.__entrarCanal__(data.split()[1],cliente)
+            return False
+        if str(data).find('//listar')>-1:
+            cliente.post(str(self.__getCanais__())+"\n")
+            return False
 
-    def getData(self,s):
-#        print('DATA')
-        try:
-            name = True
-            criar = -1
-            data = s.recv(RECV_BUFFER).decode()
-            if data:
-                cliente = self.getCliente(s)
-                if cliente.nome == None:
-                     name =  self.setNomeCliente(data,cliente)
+        return True
 
-                if str(data).find('|sair|') >-1:
-                      self.remover(cliente)
-                      self.sair_canal(cliente.canal,cliente)
-                      name = False
 
-                if str(data).find('/criar')>-1:
-                    self.criar_canal(data.split()[1],cliente)
-                    name = False
+    def __sairCanal__(self,nomeCanal,cliente):
+        if nomeCanal == '0':
+            self.__remover__(cliente)
+            self.listaCanais[nomeCanal].remove(cliente)
+            self.__post__(cliente,'Saiu \n')
+        else:
+            self.listaCanais[nomeCanal].remove(cliente)
+            self.listaCanais['0'].append(cliente)
+            self.__post__(cliente,'Saiu do canal\n')
+            cliente.setCanal('0')
 
-                if str(data).find('/entrar')>-1:
-                    self.entrar_canal(data.split()[1],cliente)
-                    name = False
-                if str(data).find('/listar')>-1:
-                    cliente.post(str(self.getCanais())+"\n")
-                    name = False
-                if name :
-                     self.enviar_msg(cliente,data)        
-        except Exception as e:
-            print('DATA ERROR')
-            print(e) 
-            cliente  = self.getCliente(s)
-            self.sair_canal(cliente.canal,cliente)
-            print ("O Cliente saiu")
-            self.remover(cliente)
-            self.C_LISTA[cliente.canal].remove(cliente)
-            pass
-            
+        print(cliente.getNome(),'Saiu do Canal : ',cliente.getCanal())
+        
+    
+    def __entrarCanal__(self,nomeCanal,cliente):
+        if nomeCanal in self.listaCanais:
+            if not cliente in self.listaCanais[nomeCanal]:
+                cliente.setCanal(nomeCanal)
+                self.listaCanais[nomeCanal].append(cliente)
+                self.listaCanais['0'].remove(cliente)
+                self.__post__(cliente,'Entrou\n')
+                cliente.post('Você Está No Canal: '+nomeCanal+"\n")
+                print(cliente.getNome(),'Entrou no Canal : ',cliente.getCanal(),"\n")
+        else:
+            cliente.post('§Error03§\n')
 
+
+    def __criarCanal__(self,nomeCanal,cliente):
+        if not nomeCanal in self.listaCanais:
+            print('Criar Canal Com Nome: ',nomeCanal)
+            self.listaCanais[nomeCanal]=list()
+            cliente.post('Você Criou o Canal: '+nomeCanal+"\n")
+            self.__entrarCanal__(nomeCanal,cliente)
+        else:
+            cliente.post('§Error02§\n')
+    
+
+
+    def __getCanais__(self):
+        return [i for i in self.listaCanais]
 
         
-    def getConn(self):
-        return self.C_LISTA
+    def __remover__(self,cliente):
+        cliente.disconnect()
+        self.listaSockets.remove(cliente.getSock())
+
+
     def fechar(self):
         self.socket.close()
         
-   
-
-

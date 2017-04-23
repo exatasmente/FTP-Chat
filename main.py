@@ -10,18 +10,18 @@ if __name__ == "__main__":
 
     try:
         while 1:
-            read_sockets,write_sockets,error_sockets = select.select(servidor.SOCKLIST,[],[])
+            read_sockets,write_sockets,error_sockets = select.select(servidor.getListaSockets(),[],[])
+ 
  
             for sock in read_sockets:
 
-                if sock == servidor.socket:
+                if sock == servidor.getSock():
                    
-                    servidor.conecta_cliente()
+                    servidor.conectaCliente()
 
                 else:
-                   
+      
                     servidor.getData(sock)
-
     except KeyboardInterrupt as KI :
         servidor.fechar()
         
@@ -29,8 +29,7 @@ if __name__ == "__main__":
     except Exception as e:
         print('MAIN ERROR')
         print(e) 
- #       continue
-#
+
     
     
     
