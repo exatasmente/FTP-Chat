@@ -5,15 +5,15 @@ import Cliente
 
 if __name__ == "__main__":
 
-    servidor = Servidor.Servidor('127.0.0.1',5000)
+    servidor = Servidor.Servidor('192.168.1.5',5000)
     print('Servidor Criado')
 
     try:
         while 1:
-            read_sockets,write_sockets,error_sockets = select.select(servidor.getListaSockets(),[],[])
+            
  
  
-            for sock in read_sockets:
+            for sock in servidor.getSelectSockets()[0]:
 
                 if sock == servidor.getSock():
                    
@@ -22,6 +22,7 @@ if __name__ == "__main__":
                 else:
       
                     servidor.getData(sock)
+
     except KeyboardInterrupt as KI :
         servidor.fechar()
         

@@ -10,7 +10,7 @@ def prompt() :
 if __name__ == "__main__":
      
      
-    host = '127.0.0.1'
+    host = '192.168.1.5'
     port = 5000
     name = sys.argv[1]
      
@@ -27,7 +27,7 @@ if __name__ == "__main__":
         print ('Não foi Possivél Conectar')
         sys.exit()
      
-    print ('Concectado Ao Servidor')
+    print ('Conectado Ao Servidor')
     #s.send('Neto')
     prompt()
     

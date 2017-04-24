@@ -1,4 +1,5 @@
 import socket
+import select
 import Cliente
 '''
 Servidor Chat Baseado em Socket Stream  
@@ -29,6 +30,9 @@ class Servidor:
     def getSock(self):
         return self.socket
 
+    def getSelectSockets(self):
+        return select.select(self.getListaSockets(),[],[])
+ 
     def getListaSockets(self):
         return self.listaSockets
 
@@ -52,8 +56,7 @@ class Servidor:
         except Exception as e:
             print(e) 
             cliente  = self.__getCliente__(s)
-            self.__sairCanal__(cliente.getCanal(),cliente)
-            print ("O Cliente saiu")
+            self.__sairCanal__(cliente)
             self.__remover__(cliente)
             self.listaCanais[cliente.getCanal()].remove(cliente)
             pass
@@ -64,7 +67,6 @@ class Servidor:
         for cli in self.listaCanais[cliente.getCanal()]:
             if cli.getSock() != cliente.getSock() and cli.getSock() != self.socket:
                 try:
-                    print(str(cliente.getNome()+" : "+msg))
                     cli.post(str(cliente.getNome()+" : "+msg))
                 except Exception as e:
                     print(e) 
@@ -105,11 +107,11 @@ class Servidor:
    
     def __getComando__(self,cliente,data):
         if str(data).find('//sair') >-1:
-            self.__sairCanal__(cliente.getCanal(),cliente)
+            self.__sairCanal__(cliente)
             return False
         if str(data).find('|sair|') >-1:
             cliente.setCanal('0')
-            self.__sairCanal__(cliente.getCanal(),cliente)
+            self.__sairCanal__(cliente)
             return False
         if str(data).find('//criar')>-1 and len(data.split())==2:
             self.__criarCanal__(data.split()[1],cliente)
@@ -123,37 +125,49 @@ class Servidor:
 
         return True
 
+    def __trocarCanal__(self,novoCanal,cliente):
+         if novoCanal in self.listaCanais:
+              if not cliente in self.listaCanais[novoCanal]:
+                  canalAntigo = cliente.getCanal()
+                  if cliente in self.listaCanais[canalAntigo]:
+                      self.listaCanais[canalAntigo].remove(cliente)
+                  self.listaCanais[novoCanal].append(cliente)
+                  cliente.setCanal(novoCanal)
+                  cliente.post('Você Está No Canal: '+nomeCanal+"\n")
+                  self.__post__(cliente,str('Trocou do Canal '+canalAntigo+' Para o Canal '+cliente.getCanal()+'\n'))
+         else:
+            cliente.post('§Error04§\n')
 
-    def __sairCanal__(self,nomeCanal,cliente):
-        if nomeCanal == '0':
+
+    def __sairCanal__(self,cliente):
+        if cliente.getCanal() == '0':
             self.__remover__(cliente)
-            self.listaCanais[nomeCanal].remove(cliente)
+            self.listaCanais[cliente.getCanal()].remove(cliente)
             self.__post__(cliente,'Saiu \n')
         else:
-            self.listaCanais[nomeCanal].remove(cliente)
-            self.listaCanais['0'].append(cliente)
             self.__post__(cliente,'Saiu do canal\n')
-            cliente.setCanal('0')
-
-        print(cliente.getNome(),'Saiu do Canal : ',cliente.getCanal())
+            self.listaCanais[cliente.getCanal()].remove(cliente)
+            self.__entrarCanal__('0',cliente)
+     
         
     
     def __entrarCanal__(self,nomeCanal,cliente):
         if nomeCanal in self.listaCanais:
             if not cliente in self.listaCanais[nomeCanal]:
-                cliente.setCanal(nomeCanal)
-                self.listaCanais[nomeCanal].append(cliente)
-                self.listaCanais['0'].remove(cliente)
-                self.__post__(cliente,'Entrou\n')
-                cliente.post('Você Está No Canal: '+nomeCanal+"\n")
-                print(cliente.getNome(),'Entrou no Canal : ',cliente.getCanal(),"\n")
+                if cliente.getCanal() == '0':
+                     self.listaCanais[cliente.getCanal()].remove(cliente)
+                     cliente.setCanal(nomeCanal)
+                     self.listaCanais[nomeCanal].append(cliente)
+                     self.__post__(cliente,'Entrou\n')
+                     cliente.post('Você Está No Canal: '+nomeCanal+"\n")
+                else:
+                     self.__trocarCanal__(nomeCanal,cliente)
         else:
             cliente.post('§Error03§\n')
 
 
     def __criarCanal__(self,nomeCanal,cliente):
         if not nomeCanal in self.listaCanais:
-            print('Criar Canal Com Nome: ',nomeCanal)
             self.listaCanais[nomeCanal]=list()
             cliente.post('Você Criou o Canal: '+nomeCanal+"\n")
             self.__entrarCanal__(nomeCanal,cliente)
