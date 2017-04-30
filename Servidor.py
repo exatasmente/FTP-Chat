@@ -2,7 +2,7 @@ import socket
 import select
 import Cliente
 '''
-Servidor Chat Baseado em Socket Stream  
+Servidor Chat Baseado em Socket TCP  
 
 Feito Com Amor em Python 3
 
@@ -78,7 +78,7 @@ class Servidor:
 
     def conectaCliente(self):
         sock,addr = self.socket.accept()
-        cliente = Cliente.Cliente(None,addr,sock,'0')
+        cliente = Cliente.Cliente(len(self.listaSockets),None,addr,sock,'0')
         self.listaSockets.append(cliente.getSock())
         self.listaCanais['0'].append(cliente)
 
@@ -103,15 +103,15 @@ class Servidor:
                cliente.setNome(nome)
                return False
        return True
-                   
+                    
    
     def __getComando__(self,cliente,data):
         if str(data).find('//sair') >-1:
             self.__sairCanal__(cliente)
             return False
         if str(data).find('|sair|') >-1:
-            cliente.setCanal('0')
-            self.__sairCanal__(cliente)
+            self.__remover__(cliente)
+            
             return False
         if str(data).find('//criar')>-1 and len(data.split())==2:
             self.__criarCanal__(data.split()[1],cliente)
@@ -122,7 +122,7 @@ class Servidor:
         if str(data).find('//listar')>-1:
             cliente.post(str(self.__getCanais__())+"\n")
             return False
-
+        
         return True
 
     def __trocarCanal__(self,novoCanal,cliente):
@@ -133,7 +133,7 @@ class Servidor:
                       self.listaCanais[canalAntigo].remove(cliente)
                   self.listaCanais[novoCanal].append(cliente)
                   cliente.setCanal(novoCanal)
-                  cliente.post('Você Está No Canal: '+nomeCanal+"\n")
+                  cliente.post('Você Está No Canal: '+novoCanal+"\n")
                   self.__post__(cliente,str('Trocou do Canal '+canalAntigo+' Para o Canal '+cliente.getCanal()+'\n'))
          else:
             cliente.post('§Error04§\n')
@@ -142,8 +142,6 @@ class Servidor:
     def __sairCanal__(self,cliente):
         if cliente.getCanal() == '0':
             self.__remover__(cliente)
-            self.listaCanais[cliente.getCanal()].remove(cliente)
-            self.__post__(cliente,'Saiu \n')
         else:
             self.__post__(cliente,'Saiu do canal\n')
             self.listaCanais[cliente.getCanal()].remove(cliente)
@@ -166,7 +164,9 @@ class Servidor:
             cliente.post('§Error03§\n')
 
 
+  
     def __criarCanal__(self,nomeCanal,cliente):
+               
         if not nomeCanal in self.listaCanais:
             self.listaCanais[nomeCanal]=list()
             cliente.post('Você Criou o Canal: '+nomeCanal+"\n")
@@ -177,13 +177,17 @@ class Servidor:
 
 
     def __getCanais__(self):
-        return [i for i in self.listaCanais]
+        retorno = "§lista§"
+        for i in self.listaCanais:
+            retorno +=  ' Canal '+str(i) 
+        return retorno
 
         
     def __remover__(self,cliente):
+        self.__post__(cliente,'Saiu \n')
         cliente.disconnect()
         self.listaSockets.remove(cliente.getSock())
-
+        self.listaCanais[cliente.getCanal()].remove(cliente)
 
     def fechar(self):
         self.socket.close()

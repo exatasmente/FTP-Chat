@@ -5,7 +5,7 @@ import Cliente
 
 if __name__ == "__main__":
 
-    servidor = Servidor.Servidor('192.168.1.5',5000)
+    servidor = Servidor.Servidor('127.0.0.1',500)
     print('Servidor Criado')
 
     try:
@@ -22,6 +22,7 @@ if __name__ == "__main__":
                 else:
       
                     servidor.getData(sock)
+
 
     except KeyboardInterrupt as KI :
         servidor.fechar()
