@@ -1,41 +1,43 @@
-# telnet program example
+
 import socket, select, sys
- 
+import utils
 
 
 class Client:
      
-    def __init__(self,nome):
-        self.host = '127.0.0.1'
-        self.port = 500
-        self.name = nome
+    def __init__(self,host,port,name):
+        self.host = host
+        self.port = port
+        self.name = name
     
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.socket.settimeout(2)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 0)
+
         
 
-    def prompt(self) :
-        sys.stdout.write('')
+    def prompt(self,data=None) :
+        if data:
+
+            sys.stdout.write(utils.CLIENT_MESSAGE_PREFIX.format(data[0])+ ' ' +  data[1])
+        else:
+            sys.stdout.write('')
         sys.stdout.flush()
  
 
 
  
     def getData(self,s):
-        try:
-            data = s.recv(4096).decode()
-            if data:
-                sys.stdout.write(data)
+        data = s.recv(400).decode()
+        if data :
+            if len(data.split(':')) > 1:
+                self.prompt(data.split(':'))
+            else:
                 self.prompt()
-
-        except Exception as e:
-            print(e) 
-            self.disconnect()
-            pass
-            
+        else:
+            print(utils.CLIENT_SERVER_DISCONNECTED.format(self.host,self.port))
+            sys.exit()
+           
     def disconnect(self):
-        self.socket.send("|sair|".encode())
         self.socket.close()
         sys.exit()
 
@@ -45,10 +47,10 @@ class Client:
             self.socket.send(self.name.encode())
 
         except :
-            print ('Não foi Possivél Conectar')
+            print(utils.CLIENT_CANNOT_CONNECT.format(sys.argv[1],sys.argv[2]))
             sys.exit()
      
-        print ('Conectado Ao Servidor')
+        print ('Connected')
 
     def post(self,msg):
         self.socket.send(msg)

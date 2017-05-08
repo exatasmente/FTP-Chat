@@ -1,10 +1,10 @@
 import socket
-
+import utils
 class Cliente:
 
 
     def __init__(self,nome = None,addr = None,socket = None,canal = None):
-    
+
         self.nome = nome
         self.addr = addr
         self.socket = socket
@@ -12,8 +12,9 @@ class Cliente:
 
 
     def __eq__(self,other):
-        
-        return self.addr ==  other.addr and self.socket == other.socket 
+        if type(self) == type(other):
+            return self.addr ==  other.addr and self.socket == other.socket
+        return False
 
     def getSock(self):
         return self.socket
@@ -32,10 +33,14 @@ class Cliente:
               
     def getCanal(self):
         return self.canal
+
     def setCanal(self,canal):
         self.canal = canal
         
-    
+
+    def get(self):
+        return self.socket.recv(utils.MESSAGE_LENGTH).decode()
+
     def post(self,msg):
         self.socket.send(msg.encode())  
 
